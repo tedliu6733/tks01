@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Assistant + 語音助手 Docker Compose 部署指南</title>
+    <style>
+        :root {
+            --primary: #03a9f4;
+            --primary-dark: #0288d1;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
+            --border: #e0e0e0;
+            --code-bg: #1e1e1e;
+            --code-text: #d4d4d4;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --info: #2196f3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .architecture {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .architecture h2 {
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .arch-card {
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .arch-card.ha { border-color: var(--primary); background: #e1f5fe; }
+        .arch-card .port { font-size: 0.85rem; color: var(--text-light); }
+        .arch-card .name { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.3rem; }
+        .arch-card .desc { font-size: 0.9rem; color: var(--text-light); }
+
+        .requirements {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .requirements h2 {
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+        }
+
+        .req-list { list-style: none; }
+        .req-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .req-list li:last-child { border-bottom: none; }
+        .req-list li::before { content: "✓ "; color: var(--success); font-weight: bold; }
+
+        .step {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--primary);
+        }
+
+        .step-number {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-right: 0.75rem;
+        }
+
+        .step h2 {
+            display: inline;
+            font-size: 1.3rem;
+            color: var(--text);
+            vertical-align: middle;
+        }
+
+        .step p { margin-top: 1rem; }
+
+        pre {
+            background: var(--code-bg);
+            color: var(--code-text);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin-top: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        code {
+            font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        }
+
+        .inline-code {
+            background: #e8e8e8;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 0.7rem 1rem;
+            text-align: left;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td { background: #f0f7ff; }
+
+        .note {
+            background: #e3f2fd;
+            border-left: 4px solid var(--info);
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid var(--warning);
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .ha-steps {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--success);
+        }
+
+        .ha-steps h2 {
+            color: var(--success);
+            margin-bottom: 1rem;
+        }
+
+        .ha-steps h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .ha-steps ol { padding-left: 1.5rem; }
+        .ha-steps li { margin-bottom: 0.5rem; }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary-dark);
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .troubleshoot {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .troubleshoot h3 {
+            color: var(--warning);
+            margin-bottom: 0.5rem;
+        }
+
+        .troubleshoot + .troubleshoot { margin-top: 1rem; }
+
+        .commands-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .cmd-card {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .cmd-card .cmd-label {
+            color: var(--primary);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .cmd-card code {
+            color: var(--code-text);
+            font-size: 0.85rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            .arch-grid { grid-template-columns: 1fr; }
+            .commands-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.5rem; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Home Assistant + 語音助手</h1>
+    <p>Docker Compose 部署指南 — 本地語音辨識、語音合成、喚醒詞偵測</p>
+</div>
+
+<div class="container">
+
+    <!-- 系統需求 -->
+    <div class="requirements">
+        <h2>系統需求</h2>
+        <ul class="req-list">
+            <li>Linux 主機（Ubuntu / Debian 建議）</li>
+            <li>Docker Engine + Docker Compose v2</li>
+            <li>4+ 核心 CPU、8GB+ RAM</li>
+            <li>網路連線（首次下載映像及模型）</li>
+        </ul>
+    </div>
+
+    <!-- 架構概覽 -->
+    <div class="architecture">
+        <h2>架構概覽</h2>
+        <p>四個容器透過 Wyoming 協議通訊，全部本地運行，支援中英雙語。</p>
+        <div class="arch-grid">
+            <div class="arch-card ha">
+                <div class="name">Home Assistant</div>
+                <div class="port">Port 8123 (host network)</div>
+                <div class="desc">HA 核心 + Web UI</div>
+            </div>
+            <div class="arch-card">
+                <div class="name">Whisper (STT)</div>
+                <div class="port">Port 10300</div>
+                <div class="desc">語音轉文字</div>
+            </div>
+            <div class="arch-card">
+                <div class="name">Piper (TTS)</div>
+                <div class="port">Port 10200</div>
+                <div class="desc">文字轉語音</div>
+            </div>
+            <div class="arch-card">
+                <div class="name">openWakeWord</div>
+                <div class="port">Port 10400</div>
+                <div class="desc">喚醒詞偵測</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="step">
+        <span class="step-number">1</span>
+        <h2>安裝 Docker</h2>
+        <p>如果尚未安裝 Docker，執行以下指令：</p>
+        <pre><code># 安裝 Docker
+curl -fsSL https://get.docker.com | sh
+
+# 將當前使用者加入 docker 群組（免 sudo）
+sudo usermod -aG docker $USER
+
+# 重新登入後驗證
+docker --version
+docker compose version</code></pre>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+        <span class="step-number">2</span>
+        <h2>建立專案目錄</h2>
+        <pre><code>mkdir -p ~/docker-HomeAsistant
+cd ~/docker-HomeAsistant</code></pre>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+        <span class="step-number">3</span>
+        <h2>建立環境變數檔 <code class="inline-code">.env</code></h2>
+        <pre><code>cat &gt; .env &lt;&lt; 'EOF'
+# Timezone — 依照你的地區修改
+TZ=Asia/Taipei
+
+# Whisper STT config
+WHISPER_MODEL=base
+WHISPER_LANGUAGE=zh
+
+# Piper TTS voices
+PIPER_VOICE=zh_CN-huayan-medium
+
+# openWakeWord
+OPENWAKEWORD_PRELOAD_MODEL=ok_nabu
+EOF</code></pre>
+
+        <table>
+            <thead>
+                <tr><th>變數</th><th>說明</th><th>可選值</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>TZ</code></td><td>時區</td><td><code>Asia/Taipei</code>、<code>Asia/Tokyo</code>、<code>America/New_York</code></td></tr>
+                <tr><td><code>WHISPER_MODEL</code></td><td>模型大小</td><td><code>tiny</code>（最快）、<code>base</code>（平衡）、<code>small</code>（較準）</td></tr>
+                <tr><td><code>WHISPER_LANGUAGE</code></td><td>辨識語言</td><td><code>zh</code>（中文）、<code>en</code>（英文）</td></tr>
+                <tr><td><code>PIPER_VOICE</code></td><td>TTS 語音</td><td><code>zh_CN-huayan-medium</code>、<code>en_US-lessac-medium</code></td></tr>
+                <tr><td><code>OPENWAKEWORD_PRELOAD_MODEL</code></td><td>喚醒詞</td><td><code>ok_nabu</code>、<code>hey_jarvis</code>、<code>alexa</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step">
+        <span class="step-number">4</span>
+        <h2>建立 <code class="inline-code">docker-compose.yml</code></h2>
+        <pre><code>cat &gt; docker-compose.yml &lt;&lt; 'EOF'
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    environment:
+      - TZ=${TZ}
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - whisper
+      - piper
+      - openwakeword
+
+  whisper:
+    container_name: whisper
+    image: rhasspy/wyoming-whisper
+    volumes:
+      - ./whisper/data:/data
+    ports:
+      - "10300:10300"
+    environment:
+      - TZ=${TZ}
+    command: --model ${WHISPER_MODEL} --language ${WHISPER_LANGUAGE}
+    restart: unless-stopped
+
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    volumes:
+      - ./piper/data:/data
+    ports:
+      - "10200:10200"
+    environment:
+      - TZ=${TZ}
+    command: --voice ${PIPER_VOICE}
+    restart: unless-stopped
+
+  openwakeword:
+    container_name: openwakeword
+    image: rhasspy/wyoming-openwakeword
+    volumes:
+      - ./openwakeword/data:/custom
+    ports:
+      - "10400:10400"
+    environment:
+      - TZ=${TZ}
+    command: --preload-model ${OPENWAKEWORD_PRELOAD_MODEL}
+    restart: unless-stopped
+EOF</code></pre>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step">
+        <span class="step-number">5</span>
+        <h2>建立資料目錄</h2>
+        <pre><code>mkdir -p homeassistant/config whisper/data piper/data openwakeword/data</code></pre>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step">
+        <span class="step-number">6</span>
+        <h2>啟動服務</h2>
+        <pre><code># 拉取映像
+docker compose pull
+
+# 背景啟動所有服務
+docker compose up -d</code></pre>
+
+        <div class="note">
+            <strong>首次啟動說明：</strong>會自動下載模型檔案（Whisper base 約 150MB、Piper 語音約 30-60MB），請等待 2-5 分鐘。
+        </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step">
+        <span class="step-number">7</span>
+        <h2>驗證服務狀態</h2>
+        <pre><code># 檢查所有容器是否正常運行
+docker compose ps
+
+# 檢查各語音服務日誌（應顯示 Ready）
+docker compose logs whisper --tail 5
+docker compose logs piper --tail 5
+docker compose logs openwakeword --tail 5</code></pre>
+        <p>所有服務應顯示 <code class="inline-code">Up</code> 狀態，且日誌中出現 <code class="inline-code">Ready</code>。</p>
+    </div>
+
+    <!-- Step 8: HA UI -->
+    <div class="ha-steps">
+        <h2>第 8 步：設定 Home Assistant</h2>
+        <p>打開瀏覽器訪問 <strong>http://localhost:8123</strong>（或 <code class="inline-code">http://&lt;主機IP&gt;:8123</code>）</p>
+
+        <h3>8.1 完成初始設定</h3>
+        <ol>
+            <li>建立管理員帳號</li>
+            <li>設定住家名稱與地理位置</li>
+            <li>跳過自動發現的整合（之後再設定）</li>
+        </ol>
+
+        <h3>8.2 新增 Wyoming 語音整合</h3>
+        <p>路徑：<strong>Settings → Devices &amp; Services → Add Integration</strong>，搜尋 <strong>Wyoming</strong>，分別新增：</p>
+        <table>
+            <thead>
+                <tr><th>服務</th><th>Host</th><th>Port</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Whisper (STT)</td><td><code>localhost</code></td><td><code>10300</code></td></tr>
+                <tr><td>Piper (TTS)</td><td><code>localhost</code></td><td><code>10200</code></td></tr>
+                <tr><td>openWakeWord</td><td><code>localhost</code></td><td><code>10400</code></td></tr>
+            </tbody>
+        </table>
+
+        <h3>8.3 建立語音助手管線</h3>
+        <p>路徑：<strong>Settings → Voice assistants → Add assistant</strong></p>
+        <table>
+            <thead>
+                <tr><th>設定項目</th><th>選擇</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Name</td><td><code>Home Voice</code>（自訂）</td></tr>
+                <tr><td>Conversation agent</td><td>Home Assistant</td></tr>
+                <tr><td>Speech-to-text</td><td>whisper (faster-whisper)</td></tr>
+                <tr><td>Text-to-speech</td><td>piper</td></tr>
+                <tr><td>Wake word</td><td>openwakeword → <code>ok nabu</code></td></tr>
+            </tbody>
+        </table>
+
+        <h3>8.4 測試語音助手</h3>
+        <p>點擊 HA 介面右上角的麥克風圖示，說出 "ok nabu" 後下達語音指令測試。</p>
+    </div>
+
+    <!-- 常用指令 -->
+    <h2 class="section-title">常用維護指令</h2>
+
+    <div class="commands-grid">
+        <div class="cmd-card">
+            <div class="cmd-label">查看服務狀態</div>
+            <code>docker compose ps</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">查看日誌</div>
+            <code>docker compose logs &lt;服務名&gt; --tail 50</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">重啟所有服務</div>
+            <code>docker compose restart</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">重啟單一服務</div>
+            <code>docker compose restart whisper</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">停止所有服務</div>
+            <code>docker compose down</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">更新映像並重啟</div>
+            <code>docker compose pull &amp;&amp; docker compose up -d</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">查看資源使用</div>
+            <code>docker stats --no-stream</code>
+        </div>
+        <div class="cmd-card">
+            <div class="cmd-label">查看磁碟空間</div>
+            <code>df -h</code>
+        </div>
+    </div>
+
+    <!-- 疑難排解 -->
+    <h2 class="section-title">疑難排解</h2>
+
+    <div class="troubleshoot">
+        <h3>Whisper 啟動出現 float16 警告</h3>
+        <pre><code>WARNING: float16 is not supported on CPU, using float32 instead</code></pre>
+        <p>正常現象，CPU 模式下會自動降級為 float32，不影響功能。</p>
+    </div>
+
+    <div class="troubleshoot">
+        <h3>HA 無法發現區網裝置</h3>
+        <p>確認 Home Assistant 使用 <code class="inline-code">network_mode: host</code>，這樣才能透過 mDNS/SSDP 發現區網中的 IoT 裝置。</p>
+    </div>
+
+    <div class="troubleshoot">
+        <h3>語音辨識不準確</h3>
+        <p>在 <code class="inline-code">.env</code> 中將 <code class="inline-code">WHISPER_MODEL</code> 從 <code class="inline-code">base</code> 改為 <code class="inline-code">small</code>，然後重啟：</p>
+        <pre><code># 修改 .env 中的 WHISPER_MODEL=small
+docker compose restart whisper</code></pre>
+    </div>
+
+    <div class="troubleshoot">
+        <h3>容器持續重啟</h3>
+        <pre><code># 查看失敗日誌
+docker compose logs &lt;服務名&gt; --tail 100
+
+# 檢查磁碟空間
+df -h</code></pre>
+    </div>
+
+    <!-- 未來擴展 -->
+    <h2 class="section-title">未來擴展</h2>
+    <div class="architecture">
+        <ul class="req-list">
+            <li><strong>Wyoming Satellite</strong> — 接入 ESP32-S3 或 Raspberry Pi 做遠端語音節點</li>
+            <li><strong>自訂喚醒詞</strong> — 訓練自己的喚醒詞模型</li>
+            <li><strong>升級 Whisper 模型</strong> — base → small → medium</li>
+            <li><strong>本地 LLM</strong> — 加入 Ollama 等本地大語言模型做智慧對話</li>
+        </ul>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>Home Assistant + Voice Stack Deployment Guide</p>
+</div>
+
+</body>
+</html>
