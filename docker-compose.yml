@@ -1,0 +1,52 @@
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    environment:
+      - TZ=${TZ}
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - whisper
+      - piper
+      - openwakeword
+
+  whisper:
+    container_name: whisper
+    image: rhasspy/wyoming-whisper
+    volumes:
+      - ./whisper/data:/data
+    ports:
+      - "10300:10300"
+    environment:
+      - TZ=${TZ}
+    command: --model ${WHISPER_MODEL} --language ${WHISPER_LANGUAGE}
+    restart: unless-stopped
+
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    volumes:
+      - ./piper/data:/data
+    ports:
+      - "10200:10200"
+    environment:
+      - TZ=${TZ}
+    command: --voice ${PIPER_VOICE}
+    restart: unless-stopped
+
+  openwakeword:
+    container_name: openwakeword
+    image: rhasspy/wyoming-openwakeword
+    volumes:
+      - ./openwakeword/data:/custom
+    ports:
+      - "10400:10400"
+    environment:
+      - TZ=${TZ}
+    command: --preload-model ${OPENWAKEWORD_PRELOAD_MODEL}
+    restart: unless-stopped
