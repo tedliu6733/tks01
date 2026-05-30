@@ -1,0 +1,11 @@
+# Home Assistant runtime data
+homeassistant/config/*
+!homeassistant/config/.gitkeep
+
+# Model caches
+whisper/data/*
+!whisper/data/.gitkeep
+piper/data/*
+!piper/data/.gitkeep
+openwakeword/data/*
+!openwakeword/data/.gitkeep
